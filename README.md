@@ -37,7 +37,7 @@ This tool helps assess how prepared facilities are to adopt and sustain digital 
 No external dependencies required beyond Python standard library.
 
 ```bash
-git clone https://github.com/your-username/digital-readiness-score.git
+git clone https://github.com/Patience-B/facility_digital_readiness_scoring_example_framework.git
 cd digital-readiness-score
 ```
 
