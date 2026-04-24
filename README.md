@@ -1,5 +1,3 @@
-Here’s a more polished, **GitHub-ready README.md** with cleaner formatting, badges, and a professional tone:
-
 ---
 
 # 🏥 Digital Readiness Scoring Tool (DRS)
