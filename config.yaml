@@ -1,0 +1,201 @@
+domains:
+
+  # ─────────────────────────────────────────────
+  # 1. CLINICAL SERVICE DELIVERY
+  # ─────────────────────────────────────────────
+  clinical_service_delivery:
+    name: Clinical Service Delivery
+    description: >
+      Supports the direct delivery of patient care, from diagnosis and
+      treatment to pharmacy and imaging.
+    subcategories:
+
+      clinical_emr_ehr:
+        indicators:
+          clinical_emr_ehr_available:
+            description: Show digital maturity and faster adoption of EMR
+            type: boolean
+            priority: core
+            weight: 0          # weight=0 → recorded but excluded from score
+          clinical_emr_ehr_interoperable:
+            description: Supports the consolidation of systems in one central place
+            type: boolean
+            priority: important
+            weight: 0          # weight=0 → recorded but excluded from score
+
+  # ─────────────────────────────────────────────
+  # 2. ROUTINE HEALTH INFORMATION & REPORTING
+  # ─────────────────────────────────────────────
+  reporting:
+    name: Routine Health Information & Reporting
+    description: >
+      Aggregates and reports health data across facilities, communities,
+      and disease surveillance networks.
+    subcategories:
+
+      reporting_hmis:
+        indicators:
+          reporting_hmis_digital_reporting_available:
+            description: Facilities reporting digitally integrate EMR faster
+            type: boolean
+            priority: core
+            weight: 5
+
+  # ─────────────────────────────────────────────
+  # 3. HEALTH WORKFORCE
+  # ─────────────────────────────────────────────
+  health_workforce:
+    name: Health Workforce
+    description: >
+      Covers the training, licensing, accreditation, and administration
+      of health workers.
+    subcategories:
+
+      workforce_it_support:
+        indicators:
+          workforce_it_support_available:
+            description: Support continued EMR functioning post implementation
+            type: boolean
+            priority: important
+            weight: 0          # weight=0 → excluded
+
+      workforce_human_resource:
+        indicators:
+          workforce_human_resource_staff_trained_in_digital_systems:
+            description: Digitally aware/trained staff more likely/willing to adopt EMR
+            type: numeric      # percentage of staff trained
+            min: 0
+            max: 1
+            priority: important
+            weight: 0          # weight=0 → excluded
+
+      workforce_staffing:
+        indicators:
+          workforce_staffing_exact_number_of_staff_by_role:
+            description: More human capacity likely to favour use of EMR
+            type: numeric
+            min: 0
+            max: 500
+            priority: important
+            weight: 0          # weight=0 → excluded
+
+  # ─────────────────────────────────────────────
+  # 4. PHYSICAL INFRASTRUCTURE
+  # ─────────────────────────────────────────────
+  physical_infrastructure:
+    name: Physical Infrastructure
+    description: >
+      Tracks and manages health facility assets, equipment, and utilities.
+    subcategories:
+
+      infrastructure_devices:
+        indicators:
+          infrastructure_devices_functional_devices_available:
+            description: Required for accessing and utilising the EMR
+            type: boolean
+            priority: important
+            weight: 10
+
+      infrastructure_power:
+        indicators:
+          infrastructure_power_electricity_available:
+            description: Stable power is necessary for systems to run
+            type: boolean
+            priority: core
+            weight: 0          # core gating flag; excluded from score per methodology
+          infrastructure_power_primary_source_ordinal:
+            description: Power source supports power stability
+            type: ordinal
+            scale: ["none", "generator", "solar", "grid", "hybrid"]
+            priority: important
+            weight: 10
+          infrastructure_power_backup_power_available:
+            description: Back-up power ensures stable power availability
+            type: boolean
+            priority: important
+            weight: 10
+          infrastructure_power_hours_available_per_day:
+            description: Consistent stable power for long periods supports EMR adoption
+            type: numeric
+            min: 0
+            max: 24
+            priority: important
+            weight: 10
+
+      infrastructure_connectivity:
+        indicators:
+          infrastructure_connectivity_internet_available:
+            description: Required for EMR connectivity
+            type: boolean
+            priority: core
+            weight: 0          # core gating flag; excluded from score per methodology
+          infrastructure_connectivity_network_type_ordinal:
+            description: >
+              LAN/WiFi connection is more stable for supporting EMR functioning
+              than cellular network
+            type: ordinal
+            scale: ["none", "2G", "3G", "4G", "5G", "LAN/WiFi"]
+            priority: important
+            weight: 10
+          infrastructure_connectivity_bandwidth_mbps:
+            description: Internet speed affects smooth function and adoption of an EMR
+            type: numeric
+            min: 0
+            max: 50
+            priority: important
+            weight: 10
+          infrastructure_connectivity_uptime_pct:
+            description: Continuous stable connectivity supports efficient adoption of EMR
+            type: percentage
+            min: 0
+            max: 100
+            priority: important
+            weight: 5
+
+      infrastructure_security:
+        indicators:
+          infrastructure_security_staff_present:
+            type: boolean
+            priority: important
+            weight: 0          # excluded per source table
+          infrastructure_security_physical_infrastructure_present:
+            type: boolean
+            priority: important
+            weight: 0          # excluded per source table
+
+      infrastructure_capacity:
+        indicators:
+          infrastructure_capacity_daily_patient_volume_tracked:
+            description: Higher patient volume increases EMR adoption benefit
+            type: numeric
+            min: 0
+            max: 1000
+            priority: important
+            weight: 20
+
+      infrastructure_utilities:
+        indicators:
+          infrastructure_utilities_water_available:
+            type: boolean
+            priority: important
+            weight: 0          # excluded per source table
+
+      infrastructure_facility:
+        indicators:
+          infrastructure_facility_location:
+            description: Shows location of facility and proximity to main central hubs
+            type: numeric
+            min: -180
+            max: 180
+            priority: important
+            weight: 0          # no weight assigned in source table
+
+        infrastructure_facility:
+        indicators:
+          infrastructure_facility_location:
+            description: Shows location of facility and proximity to main central hubs
+            type: numeric
+            min: -180
+            max: 180
+            priority: important
+            weight: 0   
