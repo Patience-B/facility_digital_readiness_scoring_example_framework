@@ -1,0 +1,6 @@
+facility_id,reporting_hmis_digital_reporting_available,infrastructure_devices_functional_devices_available,infrastructure_power_primary_source_ordinal,infrastructure_power_backup_power_available,infrastructure_power_hours_available_per_day,infrastructure_connectivity_internet_available,infrastructure_connectivity_network_type_ordinal,infrastructure_connectivity_bandwidth_mbps,infrastructure_connectivity_uptime_pct,infrastructure_security_staff_present,infrastructure_capacity_daily_patient_volume_tracked,infrastructure_utilities_water_available,infrastructure_facility_location
+FAC_001_HighPerformer,TRUE,TRUE,grid,TRUE,24,TRUE,4G,50,99,TRUE,500,TRUE,10000
+FAC_002_MidTier,TRUE,TRUE,solar,FALSE,18,TRUE,3G,10,75,TRUE,250,TRUE,5000
+FAC_003_LowConnectivity,FALSE,TRUE,grid,FALSE,12,FALSE,2G,2,40,FALSE,100,TRUE,20000
+FAC_004_OffGrid,FALSE,FALSE,none,FALSE,4,FALSE,2G,1,20,FALSE,50,FALSE,10000
+FAC_005_PartialData,TRUE,TRUE,grid,,20,TRUE,4G,30,90,TRUE,,TRUE,
