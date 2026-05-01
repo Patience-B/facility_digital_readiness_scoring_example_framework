@@ -297,12 +297,6 @@ FAC001,67.5,72.3
 
 ---
 
-## 📄 License
-
-MIT License (or specify your preferred license)
-
----
-
 ## 👩🏽‍💻 Author
 
-Built for scalable, explainable **digital health system readiness assessments**, especially in low-resource settings.
+Patience Bwire
