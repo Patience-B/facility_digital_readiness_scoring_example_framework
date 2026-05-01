@@ -1,5 +1,3 @@
----
-
 # 🏥 Digital Readiness Scoring Tool (DRS)
 
 A configurable Python tool for computing a **Digital Readiness Score (DRS)** for health facilities using structured indicator data.
@@ -12,6 +10,7 @@ This tool helps assess how prepared facilities are to adopt and sustain digital 
 
 * ⚙️ **Config-driven scoring** (YAML-based)
 * 🧮 **Automatic normalization** (boolean, numeric, percentage, ordinal)
+* 🔃 **Invertible indicators** (lower raw value → higher score, e.g. distance to referral)
 * 📊 **Weighted scoring system (0–100)**
 * 🔍 **Full transparency** (per-indicator contributions & statuses)
 * 🧱 **Modular design** (easy to extend without code changes)
@@ -96,6 +95,11 @@ domains:
           indicator_name:
             type: boolean | numeric | percentage | ordinal
             weight: number
+            invert: true          # optional — flip the scale
+            fallback_weight: number  # optional — used when value is missing
+            min: number           # numeric/percentage only
+            max: number           # numeric/percentage only
+            scale: [...]          # ordinal only — ordered list, low → high
 ```
 
 ---
@@ -104,18 +108,30 @@ domains:
 
 ### 1. Normalization
 
-All indicator values are scaled to **[0, 1]**:
+All indicator values are scaled to **[0, 1]** before weighting. The method depends on the indicator type:
 
-| Type       | Method                    |
-| ---------- | ------------------------- |
-| Boolean    | `True → 1`, `False → 0`   |
-| Numeric    | Min-max scaling           |
-| Percentage | Min-max scaling           |
-| Ordinal    | Position in defined scale |
+| Type | Method |
+| --- | --- |
+| Boolean | `True → 1.0`, `False → 0.0` |
+| Numeric | Min-max scaling: `(value − min) / (max − min)`, clamped to [0, 1] |
+| Percentage | Same as Numeric |
+| Ordinal | `index_in_scale / (len(scale) − 1)` — assumes scale is ordered from lowest to highest |
+
+**Out-of-range clamping:** For `numeric` and `percentage` types, values below `min` or above `max` are clamped to `0.0` or `1.0` respectively rather than exceeding the [0, 1] range.
+
+**Inverted indicators (`invert: true`):** Some indicators are naturally "better when lower" (e.g. distance to a referral facility, patient wait time). Setting `invert: true` on any indicator flips its normalized score:
+
+```
+final_score = 1.0 − normalized_score
+```
+
+This means a shorter distance (lower raw value) yields a higher readiness contribution. The `invert` flag works with all indicator types.
 
 ---
 
 ### 2. Weighted Contribution
+
+Each indicator contributes to the total score in proportion to its configured weight:
 
 ```
 contribution = normalized_value × weight
@@ -125,19 +141,62 @@ contribution = normalized_value × weight
 
 ### 3. Digital Readiness Score (DRS)
 
+The DRS aggregates all indicator contributions into a single facility-level score:
+
 ```
 DRS = (Σ contributions / Σ weights) × 100
 ```
+
+Only indicators that are present and have a non-zero weight are included in this calculation. Missing indicators contribute `0` to `Σ contributions` but their weight is still counted in `Σ weights`, which penalizes incomplete data.
 
 ---
 
 ### 4. Domain Scores
 
-Each domain is scored independently:
+Each domain is scored **independently** based on its own indicators only:
 
 ```
-domain_score = (domain contribution / domain max weight) × 100
+domain_score = (Σ domain contributions / Σ domain weights) × 100
 ```
+
+`Σ domain weights` is the sum of weights for all non-zero-weight indicators within that domain — it is **not** a share of the global total. This means domain scores are self-contained and comparable across facilities regardless of other domains.
+
+---
+
+### 5. Handling Missing Data
+
+* Missing values contribute **0** to weighted contributions.
+* Their configured weight **is still counted** in `Σ weights`, reducing the overall DRS.
+* Indicators may define a `fallback_weight` in the config. When a value is missing and a `fallback_weight` is provided, the fallback replaces the standard weight for that indicator in that facility's calculation.
+* Indicators with `weight: 0` are excluded from all score calculations but are still tracked in the output with status `excluded (weight=0)`.
+
+---
+
+### 6. Indicator % Contribution
+
+After the DRS is computed, a second pass calculates each included indicator's share of the raw total:
+
+```
+pct_of_final_score = (indicator contribution / Σ contributions) × 100
+```
+
+This is recorded in the output and helps identify which indicators drove a facility's score.
+
+---
+
+## 🔍 Type Coercion
+
+CSV values are automatically converted based on the indicator type defined in the config:
+
+| Input | Indicator Type | Parsed As |
+| --- | --- | --- |
+| `true`, `yes`, `1`, `y` | boolean | `True` |
+| `false`, `no`, `0`, `n` | boolean | `False` |
+| `12.5` | numeric / percentage | `float` |
+| `"grid"` | ordinal | string (matched against scale) |
+| empty cell | any | `None` |
+
+Columns present in the CSV but not defined in `config.yaml` are **silently ignored** during scoring. They will not appear in the output, but no error is raised.
 
 ---
 
@@ -158,7 +217,7 @@ The output CSV includes:
 
 ### Indicator-Level Fields
 
-For each indicator:
+For each non-zero-weight indicator:
 
 * `<indicator>_normalised`
 * `<indicator>_pct_of_score`
@@ -168,33 +227,12 @@ For each indicator:
 
 ## 📌 Indicator Status Definitions
 
-| Status                | Description                    |
-| --------------------- | ------------------------------ |
-| `included`            | Used in scoring                |
-| `missing`             | Not provided in input          |
-| `excluded (weight=0)` | Ignored by design              |
-| `not_in_config`       | Present in CSV but not defined |
-
----
-
-## 🔄 Handling Missing Data
-
-* Missing values contribute **0**
-* Indicators may define a `fallback_weight`
-* Indicators with `weight = 0` are **excluded from scoring but tracked**
-
----
-
-## 🔍 Type Coercion
-
-CSV values are automatically converted:
-
-| Input              | Parsed As |
-| ------------------ | --------- |
-| `true`, `yes`, `1` | Boolean   |
-| `12.5`             | Float     |
-| `"grid"`           | Ordinal   |
-| empty cell         | `None`    |
+| Status | Description |
+| --- | --- |
+| `included` | Present in input and used in scoring |
+| `missing` | Not provided in input; contributes 0 |
+| `excluded (weight=0)` | Ignored by design; tracked but not scored |
+| `not_in_config` | Present in CSV but not defined in config |
 
 ---
 
@@ -208,7 +246,7 @@ To add a new indicator:
 
    * `type`
    * `weight`
-   * Optional: `min`, `max`, or `scale`
+   * Optional: `min`, `max` (numeric/percentage), `scale` (ordinal), `invert`, `fallback_weight`
 
 ✅ No code changes required.
 
@@ -237,6 +275,7 @@ To add a new indicator:
 * Indicators with `weight: 0` are excluded from scoring
 * Some indicators act as **gating signals** (e.g., power, connectivity)
 * Unknown CSV columns are ignored silently
+* Values outside the configured `min`/`max` range are clamped, not rejected
 
 ---
 
@@ -267,7 +306,3 @@ MIT License (or specify your preferred license)
 ## 👩🏽‍💻 Author
 
 Built for scalable, explainable **digital health system readiness assessments**, especially in low-resource settings.
-
----
-
-
