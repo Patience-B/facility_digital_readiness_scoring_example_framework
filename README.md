@@ -10,7 +10,7 @@ This tool helps assess how prepared facilities are to adopt and sustain digital 
 
 * ⚙️ **Config-driven scoring** (YAML-based)
 * 🧮 **Automatic normalization** (boolean, numeric, percentage, ordinal)
-* 🔃 **Invertible indicators** (lower raw value → higher score, e.g. distance to referral)
+* 🔃 **Invertible indicators** (lower raw value → higher score, e.g. distance to capital)
 * 📊 **Weighted scoring system (0–100)**
 * 🔍 **Full transparency** (per-indicator contributions & statuses)
 * 🧱 **Modular design** (easy to extend without code changes)
