@@ -39,7 +39,9 @@ domains:
             description: Facilities reporting digitally integrate EMR faster
             type: boolean
             priority: core
-            weight: 5
+            weight: 0
+            threshold:
+              rule: boolean_true   # actively reporting to DHIS2 or national HIS within last 3 months
 
   # ─────────────────────────────────────────────
   # 3. HEALTH WORKFORCE
@@ -57,7 +59,9 @@ domains:
             description: Support continued EMR functioning post implementation
             type: boolean
             priority: important
-            weight: 0          # weight=0 → excluded
+            weight: 0
+            threshold:
+              rule: boolean_true   # at least 1 designated IT support person confirmed at facility or shared across ≤5 facilities
 
       workforce_human_resource:
         indicators:
@@ -94,7 +98,9 @@ domains:
             description: Required for accessing and utilising the EMR
             type: boolean
             priority: important
-            weight: 10
+            weight: 0
+            threshold:
+              rule: boolean_true   # ≥1 functional device per service area
 
       infrastructure_power:
         indicators:
@@ -103,24 +109,29 @@ domains:
             type: boolean
             priority: core
             weight: 0          # core gating flag; excluded from score per methodology
+            threshold:
+              rule: boolean_true   # primary source confirmed
           infrastructure_power_primary_source_ordinal:
             description: Power source supports power stability
             type: ordinal
             scale: ["none", "generator", "solar", "grid", "hybrid"]
             priority: important
-            weight: 10
+            weight: 0
           infrastructure_power_backup_power_available:
             description: Back-up power ensures stable power availability
             type: boolean
             priority: important
-            weight: 10
+            weight: 0
           infrastructure_power_hours_available_per_day:
             description: Consistent stable power for long periods supports EMR adoption
             type: numeric
             min: 0
             max: 24
             priority: important
-            weight: 10
+            weight: 0
+            threshold:
+              rule: min_value
+              value: 5             # ≥5 hours/day
 
       infrastructure_connectivity:
         indicators:
@@ -129,6 +140,8 @@ domains:
             type: boolean
             priority: core
             weight: 0          # core gating flag; excluded from score per methodology
+            threshold:
+              rule: boolean_true   # internet must be present
           infrastructure_connectivity_network_type_ordinal:
             description: >
               LAN/WiFi connection is more stable for supporting EMR functioning
@@ -136,21 +149,31 @@ domains:
             type: ordinal
             scale: ["none", "2G", "3G", "4G", "5G", "LAN/WiFi"]
             priority: important
-            weight: 10
+            weight: 0
           infrastructure_connectivity_bandwidth_mbps:
             description: Internet speed affects smooth function and adoption of an EMR
             type: numeric
             min: 0
             max: 50
             priority: important
-            weight: 10
+            weight: 0
+            threshold:
+              rule: min_value
+              value: 2             # ≥2 Mbps download
           infrastructure_connectivity_uptime_pct:
             description: Continuous stable connectivity supports efficient adoption of EMR
             type: percentage
             min: 0
             max: 100
             priority: important
-            weight: 5
+            weight: 0
+          connectivity_score:
+            description: Composite score of connectivity indicators
+            type: numeric
+            min: 0
+            max: 0.87
+            priority: important
+            weight: 50
 
       infrastructure_security:
         indicators:
@@ -171,31 +194,30 @@ domains:
             min: 0
             max: 1000
             priority: important
-            weight: 20
+            weight: 0
 
       infrastructure_utilities:
         indicators:
           infrastructure_utilities_water_available:
             type: boolean
             priority: important
-            weight: 0          # excluded per source table
+            weight: 0
 
-      infrastructure_facility:
+      infrastructure_location:
         indicators:
-          infrastructure_facility_location:
-            description: Shows location of facility and proximity to main central hubs
+          infrastructure_location_proximity_to_capital_city_m:
+            description: Shows proximity to the capital city
             type: numeric
-            min: -180
-            max: 180
+            min: 0
+            max: 100
+            invert: true       # shorter distance → higher score
             priority: important
-            weight: 0          # no weight assigned in source table
-
-        infrastructure_facility:
-        indicators:
-          infrastructure_facility_location:
-            description: Shows location of facility and proximity to main central hubs
+            weight: 0
+          infrastructure_location_proximity_to_nearest_road_network_m:
+            description: Shows proximity to the nearest road network
             type: numeric
-            min: -180
-            max: 180
+            min: 0
+            max: 2518.62445
+            invert: true       # shorter distance → higher score
             priority: important
-            weight: 0   
+            weight: 50
