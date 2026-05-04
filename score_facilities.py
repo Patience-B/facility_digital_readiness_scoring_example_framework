@@ -10,26 +10,36 @@ from pathlib import Path
 # ─────────────────────────────────────────────────────────
 
 def normalize(value, indicator):
-    """Map a raw indicator value to [0, 1]."""
+    """Map a raw indicator value to [0, 1].
+
+    If the indicator carries  invert: true  the scale is flipped so that
+    a *lower* raw value (e.g. shorter distance) yields a *higher* score.
+    """
     ind_type = indicator['type']
+    invert   = indicator.get('invert', False)
 
     if ind_type == 'boolean':
-        return 1.0 if value else 0.0
+        score = 1.0 if value else 0.0
 
     elif ind_type in ('numeric', 'percentage'):
         min_val = indicator.get('min', 0)
         max_val = indicator.get('max', 1)
         if max_val == min_val:
-            return 0.0
-        return max(0.0, min((value - min_val) / (max_val - min_val), 1.0))
+            score = 0.0
+        else:
+            score = max(0.0, min((value - min_val) / (max_val - min_val), 1.0))
 
     elif ind_type == 'ordinal':
         scale = indicator['scale']
         if value in scale:
-            return scale.index(value) / (len(scale) - 1)
-        return 0.0
+            score = scale.index(value) / (len(scale) - 1)
+        else:
+            score = 0.0
 
-    return 0.0
+    else:
+        score = 0.0
+
+    return round(1.0 - score, 10) if invert else score
 
 
 # ─────────────────────────────────────────────────────────
@@ -67,6 +77,87 @@ def coerce_value(raw, ind_cfg):
 
 
 # ─────────────────────────────────────────────────────────
+# GATING
+# ─────────────────────────────────────────────────────────
+
+def check_gates(data, config):
+    """
+    Evaluate threshold rules for all indicators that define one.
+
+    Supported rules:
+        boolean_true  — raw value must coerce to True
+        min_value     — raw value must be >= threshold['value']
+
+    Returns a list of result dicts, one per gated indicator:
+        {
+          'indicator': str,
+          'rule':      str,
+          'value':     any,      # threshold value, or None for boolean rules
+          'raw_value': any,      # what the facility actually has
+          'passed':    bool,
+          'message':   str,      # empty string when passed
+        }
+    """
+    results = []
+
+    for domain_cfg in config['domains'].values():
+        for sub_cfg in domain_cfg['subcategories'].values():
+            for ind_name, ind_cfg in sub_cfg['indicators'].items():
+                threshold = ind_cfg.get('threshold')
+                if not threshold:
+                    continue
+
+                rule            = threshold['rule']
+                threshold_value = threshold.get('value')
+                raw             = data.get(ind_name)   # already coerced
+                passed          = False
+                message         = ''
+
+                if raw is None:
+                    passed  = False
+                    message = f"MISSING — required for gate ({rule})"
+
+                elif rule == 'boolean_true':
+                    passed  = raw is True
+                    message = '' if passed else "Must be True / confirmed present"
+
+                elif rule == 'min_value':
+                    try:
+                        passed  = float(raw) >= float(threshold_value)
+                        message = '' if passed else f"Must be ≥ {threshold_value} (got {raw})"
+                    except (TypeError, ValueError):
+                        passed  = False
+                        message = f"Could not compare '{raw}' against {threshold_value}"
+
+                else:
+                    # Unknown rule — log but don't penalise for misconfiguration
+                    passed  = True
+                    message = f"Unknown rule '{rule}' — gate skipped"
+
+                results.append({
+                    'indicator':  ind_name,
+                    'rule':       rule,
+                    'value':      threshold_value,
+                    'raw_value':  raw,
+                    'passed':     passed,
+                    'message':    message,
+                })
+
+    return results
+
+
+def collect_gate_indicators(config):
+    """Return indicator names that have a threshold, in config order."""
+    names = []
+    for domain_cfg in config['domains'].values():
+        for sub_cfg in domain_cfg['subcategories'].values():
+            for ind_name, ind_cfg in sub_cfg['indicators'].items():
+                if 'threshold' in ind_cfg:
+                    names.append(ind_name)
+    return names
+
+
+# ─────────────────────────────────────────────────────────
 # SCORING  (flattened – no subcategory tier)
 # ─────────────────────────────────────────────────────────
 
@@ -93,7 +184,7 @@ def compute_facility_score(data, config):
         # Walk every subcategory but expose only domain → indicator
         for sub_cfg in domain_cfg['subcategories'].values():
             for ind_name, ind_cfg in sub_cfg['indicators'].items():
-                weight = ind_cfg.get('weight', 0)
+                weight  = ind_cfg.get('weight', 0)
                 present = ind_name in data and data[ind_name] is not None
 
                 # Apply fallback weight when indicator is missing and fallback exists
@@ -128,7 +219,7 @@ def compute_facility_score(data, config):
                     })
                     continue
 
-                normalised = normalize(data[ind_name], ind_cfg)
+                normalised   = normalize(data[ind_name], ind_cfg)
                 contribution = normalised * weight
 
                 domain_entry[ind_name] = {
@@ -238,15 +329,19 @@ def score_facilities_to_csv(input_csv, output_csv, config_path):
     with open(config_path, 'r') as f:
         config = yaml.safe_load(f)
 
-    facilities, id_col = load_facilities_csv(input_csv, config)
+    facilities, id_col   = load_facilities_csv(input_csv, config)
     domain_cols, ind_cols = collect_output_columns(config)
+    gate_ind_names        = collect_gate_indicators(config)
 
     header = (
-        [id_col, 'drs_score', 'raw_total', 'max_possible']
+        [id_col, 'drs_score', 'gates_passed', 'gates_failed_list',
+         'raw_total', 'max_possible']
         + domain_cols
-        + [f"{c}_normalised" for c in ind_cols]
+        + [f"{c}_normalised"   for c in ind_cols]
         + [f"{c}_pct_of_score" for c in ind_cols]
-        + [f"{c}_status" for c in ind_cols]
+        + [f"{c}_status"       for c in ind_cols]
+        + [f"{g}_gate"         for g in gate_ind_names]
+        + [f"{g}_gate_msg"     for g in gate_ind_names]
     )
 
     with open(output_csv, 'w', newline='', encoding='utf-8') as fh:
@@ -258,11 +353,19 @@ def score_facilities_to_csv(input_csv, output_csv, config_path):
             drs, breakdown, raw_total, max_possible = compute_facility_score(fac_data, config)
             domain_scores = compute_domain_scores(breakdown, raw_total, max_possible, config)
 
+            # ── gate evaluation ────────────────────────────────────────
+            gate_results  = check_gates(fac_data, config)
+            gates_passed  = all(g['passed'] for g in gate_results)
+            failed_names  = [g['indicator'] for g in gate_results if not g['passed']]
+            gate_lookup   = {g['indicator']: g for g in gate_results}
+
             row = {
-                id_col:        fac['_id'],
-                'drs_score':   drs,
-                'raw_total':   raw_total,
-                'max_possible': max_possible,
+                id_col:              fac['_id'],
+                'drs_score':         drs,
+                'gates_passed':      gates_passed,
+                'gates_failed_list': '; '.join(failed_names) if failed_names else '',
+                'raw_total':         raw_total,
+                'max_possible':      max_possible,
             }
 
             # Domain scores
@@ -286,9 +389,19 @@ def score_facilities_to_csv(input_csv, output_csv, config_path):
                     row[f"{ind_name}_pct_of_score"]  = ''
                     row[f"{ind_name}_status"]        = 'not_in_config'
 
+            # Per-gate columns
+            for g_name in gate_ind_names:
+                g = gate_lookup.get(g_name, {})
+                row[f"{g_name}_gate"]     = 'PASS' if g.get('passed') else 'FAIL'
+                row[f"{g_name}_gate_msg"] = g.get('message', '')
+
             writer.writerow(row)
 
+    # ── summary to stdout ──────────────────────────────────────────────
     print(f"✓  Scored {len(facilities)} facilities → {output_csv}")
+    print(f"   Gates defined : {len(gate_ind_names)}")
+    for g_name in gate_ind_names:
+        print(f"     • {g_name}")
 
 
 # ─────────────────────────────────────────────────────────
